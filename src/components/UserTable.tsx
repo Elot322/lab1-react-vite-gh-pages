@@ -1,72 +1,117 @@
-import { useState } from 'react'
+import { useState, useEffect } from "react";
 
-type User = {
-  id: number
-  name: string
-  email: string
-  phone: string
-  website: string
-}
+type Post = {
+  id: number;
+  title: string;
+  body: string;
+};
+
+const POSTS_PER_PAGE = 10;
 
 export default function UserTable() {
-  const [users, setUsers] = useState<User[]>([])
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
 
-  const fetchUsers = async () => {
-    setLoading(true)
-    setError(null)
+  const fetchPosts = async () => {
+    setLoading(true);
+    setError(null);
     try {
-      const response = await fetch('https://jsonplaceholder.typicode.com/users')
+      const response = await fetch(
+        "https://jsonplaceholder.typicode.com/posts"
+      );
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
-      const data: User[] = await response.json()
-      setUsers(data)
+      const data: Post[] = await response.json();
+      setPosts(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Неизвестная ошибка')
+      setError(err instanceof Error ? err.message : "Неизвестная ошибка");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
+
+  useEffect(() => {
+    fetchPosts();
+  }, []);
+
+  const truncateBody = (body: string, maxLength: number = 30) => {
+    if (body.length <= maxLength) return body;
+    return body.substring(0, maxLength) + "...";
+  };
+
+  const startIndex = (currentPage - 1) * POSTS_PER_PAGE;
+  const endIndex = startIndex + POSTS_PER_PAGE;
+  const currentPosts = posts.slice(startIndex, endIndex);
+  const totalPages = Math.ceil(posts.length / POSTS_PER_PAGE);
+
+  const handleNext = () => {
+    if (currentPage < totalPages) {
+      setCurrentPage(currentPage + 1);
+    }
+  };
+
+  const handlePrev = () => {
+    if (currentPage > 1) {
+      setCurrentPage(currentPage - 1);
+    }
+  };
 
   return (
     <div className="user-table-container">
-      <button onClick={fetchUsers} disabled={loading}>
-        {loading ? 'Загрузка...' : 'Загрузить пользователей'}
-      </button>
+      {error && <p style={{ color: "red" }}>{error}</p>}
 
-      {error && <p style={{ color: 'red' }}>{error}</p>}
+      {loading && <p>Загрузка...</p>}
 
-      {users.length > 0 && (
-        <table
-          border={1}
-          style={{ marginTop: '20px', borderCollapse: 'collapse', width: '100%' }}
-        >
-          <thead>
-            <tr>
-              <th>Имя</th>
-              <th>Email</th>
-              <th>Телефон</th>
-              <th>Сайт</th>
-            </tr>
-          </thead>
-          <tbody>
-            {users.map((user) => (
-              <tr key={user.id}>
-                <td>{user.name}</td>
-                <td>{user.email}</td>
-                <td>{user.phone}</td>
-                <td>
-                  <a href={`http://${user.website}`} target="_blank" rel="noopener noreferrer">
-                    {user.website}
-                  </a>
-                </td>
+      {currentPosts.length > 0 && (
+        <>
+          <table
+            border={1}
+            style={{
+              marginTop: "20px",
+              borderCollapse: "collapse",
+              width: "100%",
+            }}
+          >
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Title</th>
+                <th>Body</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {currentPosts.map((post) => (
+                <tr key={post.id}>
+                  <td>{post.id}</td>
+                  <td>{post.title}</td>
+                  <td>{truncateBody(post.body)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <div
+            style={{
+              marginTop: "20px",
+              display: "flex",
+              gap: "10px",
+              alignItems: "center",
+            }}
+          >
+            <button onClick={handlePrev} disabled={currentPage === 1}>
+              Назад
+            </button>
+            <span>
+              Страница {currentPage} из {totalPages}
+            </span>
+            <button onClick={handleNext} disabled={currentPage === totalPages}>
+              Вперед
+            </button>
+          </div>
+        </>
       )}
     </div>
-  )
+  );
 }
